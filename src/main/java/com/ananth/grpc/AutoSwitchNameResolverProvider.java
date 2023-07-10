@@ -4,22 +4,17 @@ import io.grpc.EquivalentAddressGroup;
 import io.grpc.NameResolver;
 import io.grpc.NameResolverProvider;
 import io.grpc.Status;
-import org.apache.commons.lang3.StringUtils;
 
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class AutoSwitchNameResolverProvider extends NameResolverProvider
 {
 	@FunctionalInterface
 	public interface HostSwitcher
 	{
-		SocketAddress switchHost(SocketAddress current, List<InetSocketAddress> configured);
+		SocketAddress switchHost(SocketAddress current);
 	}
 	
 	private final HostSwitcher currentSocketAddress;
@@ -44,20 +39,7 @@ public class AutoSwitchNameResolverProvider extends NameResolverProvider
 	@Override
 	public NameResolver newNameResolver(URI targetUri, NameResolver.Args args)
 	{
-		String authority = targetUri.getAuthority();
-		String[] hostsAndPorts = StringUtils.split(authority, ',');
-		
-		List<InetSocketAddress> addresses = new ArrayList<>(hostsAndPorts.length);
-		for (String hostAndPort : hostsAndPorts)
-		{
-			String host = StringUtils.substringBefore(hostAndPort, ':');
-			int port = Integer.parseInt(StringUtils.substringAfter(hostAndPort, ':'));
-			
-			InetSocketAddress inetSocketAddress = new InetSocketAddress(host, port);
-			addresses.add(inetSocketAddress);
-		}
-		
-		return new AutoSwitchNameResolver(authority, addresses);
+		return new AutoSwitchNameResolver();
 	}
 	
 	@Override
@@ -68,22 +50,13 @@ public class AutoSwitchNameResolverProvider extends NameResolverProvider
 	
 	private class AutoSwitchNameResolver extends NameResolver
 	{
-		private final String authority;
-		private final List<InetSocketAddress> addresses;
-		
-		public AutoSwitchNameResolver(String authority, List<InetSocketAddress> addresses)
-		{
-			this.authority = authority;
-			this.addresses = addresses;
-		}
-		
 		private SocketAddress current;
 		private Listener2 listener;
 		
 		@Override
 		public String getServiceAuthority()
 		{
-			return authority;
+			return "dummy";
 		}
 		
 		@Override
@@ -106,7 +79,7 @@ public class AutoSwitchNameResolverProvider extends NameResolverProvider
 //				List<EquivalentAddressGroup> equivalentAddressGroups = addresses.stream().map(EquivalentAddressGroup::new).collect(Collectors.toList());
 //				listener.onResult(ResolutionResult.newBuilder().setAddresses(equivalentAddressGroups).build());
 				
-				current = currentSocketAddress.switchHost(current, addresses);
+				current = currentSocketAddress.switchHost(current);
 				EquivalentAddressGroup addressGroup = new EquivalentAddressGroup(current);
 				listener.onResult(ResolutionResult.newBuilder().setAddresses(Collections.singletonList(addressGroup)).build());
 			}

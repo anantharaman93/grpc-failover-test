@@ -7,6 +7,7 @@ import io.grpc.health.v1.HealthGrpc;
 import io.grpc.protobuf.services.HealthStatusManager;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 
 public class Test
 {
@@ -25,14 +26,14 @@ public class Test
 				.build();
 		server2.start();
 		
-		AutoSwitchNameResolverProvider.HostSwitcher hostSwitcher = (current, others) -> current == null ? others.get(0) : current;
+		AutoSwitchNameResolverProvider.HostSwitcher hostSwitcher = current -> current == null ? new InetSocketAddress("localhost", serverPort1) : current;
 		
 		NameResolverRegistry.getDefaultRegistry().register(new AutoSwitchNameResolverProvider(hostSwitcher));
 		AutoSwitchLoadBalancerProvider loadBalancerProvider = new AutoSwitchLoadBalancerProvider();
 		LoadBalancerRegistry.getDefaultRegistry().register(loadBalancerProvider);
 		
 		// ManagedChannel managedChannel = ManagedChannelBuilder.forAddress("localhost", serverPort1)
-		ManagedChannel managedChannel = ManagedChannelBuilder.forTarget("multi://localhost:" + serverPort1 + ",localhost:" + serverPort2)
+		ManagedChannel managedChannel = ManagedChannelBuilder.forTarget("multi://dummy")
 				.defaultLoadBalancingPolicy(loadBalancerProvider.getPolicyName())
 				.usePlaintext()
 				.build();
